@@ -19,17 +19,36 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Patch FFmpeg & Fix Podfile Target
+      - name: Fix Podfile Target & Patch FFmpeg Podspec Mirror
         run: |
-          # 1. Eliminar Podfile.lock para regenerar las dependencias limpias
+          # 1. Eliminar Podfile.lock para evitar caché de dependencias rotas
           rm -f ios/Podfile.lock
 
-          # 2. Ajustar el objetivo de despliegue a iOS 13.4 (requerido por React Native 0.74 / Hermes)
+          # 2. Ajustar la plataforma objetivo a iOS 13.4 (requerida por React Native 0.74 / Hermes)
           sed -i '' "s/platform :ios, .*/platform :ios, '13.4'/g" ios/Podfile || true
 
-          # 3. Parchear el podspec de ffmpeg-kit-react-native para apuntar a la v5.1 (la 6.0 da 404)
-          sed -i '' "s/'6\.0'/'5\.1'/g" node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec || true
-          sed -i '' 's/"6\.0"/"5\.1"/g' node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec || true
+          # 3. Restaurar el podspec original de ffmpeg-kit-react-native a 6.0
+          sed -i '' "s/'5\.1'/'6\.0'/g" node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec || true
+
+          # 4. Crear un podspec local para ffmpeg-kit-ios-https usando un espejo de la comunidad
+          cat << 'EOF' > ios/ffmpeg-kit-ios-https.podspec
+          Pod::Spec.new do |s|
+            s.name             = 'ffmpeg-kit-ios-https'
+            s.version          = '6.0'
+            s.summary          = 'FFmpegKit for iOS (HTTPS package mirror)'
+            s.homepage         = 'https://github.com/arthenica/ffmpeg-kit'
+            s.license          = { :type => 'LGPL-3.0' }
+            s.author           = { 'Taner Sener' => 'tanersener@gmail.com' }
+            s.platform         = :ios, '12.1'
+            s.source           = { :http => 'https://github.com/jake-is-dev/ffmpeg-kit-releases/releases/download/v6.0/ffmpeg-kit-https-6.0-ios-xcframework.zip' }
+            s.vendored_frameworks = 'ffmpegkit.xcframework', 'libavcodec.xcframework', 'libavdevice.xcframework', 'libavfilter.xcframework', 'libavformat.xcframework', 'libavutil.xcframework', 'libswresample.xcframework', 'libswscale.xcframework'
+          end
+          EOF
+
+          # 5. Declarar el podspec local en el Podfile
+          if ! grep -q "ffmpeg-kit-ios-https" ios/Podfile; then
+            sed -i '' "s/target 'cuteNTR' do/target 'cuteNTR' do\n  pod 'ffmpeg-kit-ios-https', :podspec => '.\/ffmpeg-kit-ios-https.podspec'/g" ios/Podfile
+          fi
 
       - name: Install CocoaPods
         run: |
