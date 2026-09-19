@@ -19,9 +19,10 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Patch FFmpeg Kit URL
+      - name: Patch Podfile for FFmpeg
         run: |
-          sed -i '' 's|https://github.com/arthenica/ffmpeg-kit/releases/download/v6.0/ffmpeg-kit-https-6.0-ios-xcframework.zip|https://github.com/arthenica/ffmpeg-kit/releases/download/v5.1/ffmpeg-kit-https-5.1-ios-xcframework.zip|g' node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec || true
+          # Inyectar la versión funcional de ffmpeg-kit directamente en el Podfile
+          sed -i '' "s/target 'cuteNTR' do/target 'cuteNTR' do\n  pod 'ffmpeg-kit-ios-https', '5.1'/g" ios/Podfile
 
       - name: Install CocoaPods
         run: |
