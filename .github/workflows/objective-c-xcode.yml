@@ -19,14 +19,21 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Patch Podfile for FFmpeg
+      - name: Fix Podfile & Remove Lockfile
         run: |
-          # Inyectar la versión funcional de ffmpeg-kit directamente en el Podfile
+          # 1. Eliminar el Podfile.lock para evitar el conflicto de versiones
+          rm -f ios/Podfile.lock
+
+          # 2. Asegurar que la plataforma mínima sea iOS 13.0
+          sed -i '' "s/platform :ios, .*/platform :ios, '13.0'/g" ios/Podfile || true
+
+          # 3. Inyectar la versión 5.1 de ffmpeg-kit
           sed -i '' "s/target 'cuteNTR' do/target 'cuteNTR' do\n  pod 'ffmpeg-kit-ios-https', '5.1'/g" ios/Podfile
 
       - name: Install CocoaPods
         run: |
           cd ios
+          pod repo update
           pod install
 
       - name: Build iOS Workspace
