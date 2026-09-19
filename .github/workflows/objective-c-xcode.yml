@@ -21,17 +21,38 @@ jobs:
 
       - name: Fix Podfile Target & Patch FFmpeg Podspec Mirror
         run: |
-          # 1. Eliminar Podfile.lock para evitar caché de dependencias rotas
+          # 1. Eliminar Podfile.lock para limpiar caché previa
           rm -f ios/Podfile.lock
 
           # 2. Ajustar la plataforma objetivo a iOS 13.4 (requerida por React Native 0.74 / Hermes)
           sed -i '' "s/platform :ios, .*/platform :ios, '13.4'/g" ios/Podfile || true
 
-          # 3. Restaurar el podspec original de ffmpeg-kit-react-native a 6.0
+          # 3. Restaurar la versión en el podspec de ffmpeg-kit-react-native
           sed -i '' "s/'5\.1'/'6\.0'/g" node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec || true
 
-          # 4. Crear un podspec local para ffmpeg-kit-ios-https usando un espejo de la comunidad
-          cat << 'EOF' > ios/ffmpeg-kit-ios-https.podspec
+          # 4. Probar y seleccionar una URL de espejo que responda con HTTP 200
+          CANDIDATES=(
+            "https://github.com/jake-is-dev/ffmpeg-kit-releases/releases/download/v6.0.LTS/ffmpeg-kit-https-6.0.LTS-ios-xcframework.zip"
+            "https://github.com/jake-is-dev/ffmpeg-kit-releases/releases/download/v5.1/ffmpeg-kit-https-5.1-ios-xcframework.zip"
+          )
+
+          VALID_URL=""
+          for url in "${CANDIDATES[@]}"; do
+            HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L "$url")
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              VALID_URL="$url"
+              echo "Espejo válido encontrado: $VALID_URL"
+              break
+            fi
+          done
+
+          if [ -z "$VALID_URL" ]; then
+            echo "Error: No se encontró ningún espejo activo para FFmpegKit."
+            exit 1
+          fi
+
+          # 5. Generar el podspec local apuntando a la URL válida
+          cat << EOF > ios/ffmpeg-kit-ios-https.podspec
           Pod::Spec.new do |s|
             s.name             = 'ffmpeg-kit-ios-https'
             s.version          = '6.0'
@@ -40,12 +61,12 @@ jobs:
             s.license          = { :type => 'LGPL-3.0' }
             s.author           = { 'Taner Sener' => 'tanersener@gmail.com' }
             s.platform         = :ios, '12.1'
-            s.source           = { :http => 'https://github.com/jake-is-dev/ffmpeg-kit-releases/releases/download/v6.0/ffmpeg-kit-https-6.0-ios-xcframework.zip' }
+            s.source           = { :http => '$VALID_URL' }
             s.vendored_frameworks = 'ffmpegkit.xcframework', 'libavcodec.xcframework', 'libavdevice.xcframework', 'libavfilter.xcframework', 'libavformat.xcframework', 'libavutil.xcframework', 'libswresample.xcframework', 'libswscale.xcframework'
           end
           EOF
 
-          # 5. Declarar el podspec local en el Podfile
+          # 6. Inyectar la dependencia local en el Podfile
           if ! grep -q "ffmpeg-kit-ios-https" ios/Podfile; then
             sed -i '' "s/target 'cuteNTR' do/target 'cuteNTR' do\n  pod 'ffmpeg-kit-ios-https', :podspec => '.\/ffmpeg-kit-ios-https.podspec'/g" ios/Podfile
           fi
