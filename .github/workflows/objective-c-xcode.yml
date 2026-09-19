@@ -19,13 +19,16 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
+      - name: Patch FFmpeg Kit URL
+        run: |
+          sed -i '' 's|https://github.com/arthenica/ffmpeg-kit/releases/download/v6.0/ffmpeg-kit-https-6.0-ios-xcframework.zip|https://github.com/arthenica/ffmpeg-kit/releases/download/v5.1/ffmpeg-kit-https-5.1-ios-xcframework.zip|g' node_modules/ffmpeg-kit-react-native/ffmpeg-kit-react-native.podspec || true
+
       - name: Install CocoaPods
         run: |
           cd ios
           pod install
 
       - name: Build iOS Workspace
-        # Agregamos working-directory o ejecutamos dentro de la carpeta ios
         working-directory: ios
         run: |
           xcodebuild -workspace cuteNTR.xcworkspace \
