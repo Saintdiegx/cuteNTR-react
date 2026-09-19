@@ -19,15 +19,15 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Fix Podfile & Remove Lockfile
+      - name: Fix Podfile Deployment Target & FFmpeg
         run: |
-          # 1. Eliminar el Podfile.lock para evitar el conflicto de versiones
+          # 1. Eliminar Podfile.lock para regenerar el árbol de dependencias
           rm -f ios/Podfile.lock
 
-          # 2. Asegurar que la plataforma mínima sea iOS 13.0
-          sed -i '' "s/platform :ios, .*/platform :ios, '13.0'/g" ios/Podfile || true
+          # 2. Ajustar el objetivo de despliegue a iOS 13.4 (requerido por React Native 0.74 / Hermes)
+          sed -i '' "s/platform :ios, .*/platform :ios, '13.4'/g" ios/Podfile || true
 
-          # 3. Inyectar la versión 5.1 de ffmpeg-kit
+          # 3. Forzar el uso de ffmpeg-kit 5.1 que sí tiene binarios descargables
           sed -i '' "s/target 'cuteNTR' do/target 'cuteNTR' do\n  pod 'ffmpeg-kit-ios-https', '5.1'/g" ios/Podfile
 
       - name: Install CocoaPods
